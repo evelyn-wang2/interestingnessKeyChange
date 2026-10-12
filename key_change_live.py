@@ -1,49 +1,4 @@
 """
-key_change_live.py -- live MIDI key + mode ("mood") + key-change detector.
-
-Reads a connected MIDI controller and prints one row per hop:
-
-     t(s) | key            | mood                  | key change | circle steps | interestingness
-    ------+----------------+-----------------------+------------+--------------+----------------
-      4.5 | C major        | major (bright)        |            |              |
-      9.0 | D dorian       | dorian (soulful)      | KEY CHANGE | 1            | Standard
-     14.0 | F lydian       | lydian (dreamy)       | KEY CHANGE | 4            | Medium
-     19.5 | C diminished   | diminished (tense)    | KEY CHANGE | n/a          | n/a
-
-Moods detected: major, lydian, mixolydian, dorian, minor, phrygian, locrian,
-diminished, augmented.
-
-Interestingness rates each key change by its circle steps: 0-2 = Standard,
-3-4 = Medium, 5-6 = Interesting.
-
-Circle steps = shortest distance between the two key signatures on the
-circle of fifths, 0-6. Modes use the signature of their parent major scale
-(D dorian = C major's signature). Diminished and augmented scales have no
-key signature, so a change into or out of them shows "n/a".
-
-How it works
-------------
-1. Notes in a short sliding window (held notes count while still down) are
-   weighted by duration and recency into a 12-bin pitch-class histogram.
-2. Symmetric scales first: if nearly all the weight sits inside one
-   diminished (octatonic) or augmented (hexatonic) collection, and no
-   ordinary major-scale set explains it, that is reported.
-3. Otherwise Essentia's Key algorithm finds the tonic and major/minor. Essentia
-   can only answer "major" or "minor", so the mode is then refined with the
-   notes that distinguish the modes (raised 4th = lydian, lowered 7th =
-   mixolydian, raised 6th in minor = dorian, lowered 2nd = phrygian, ...):
-   a mode only replaces plain major/minor when it explains clearly more of the
-   played notes (`--mode-margin`).
-4. A new key/mood only replaces the current one after winning several
-   estimates in a row (and, for a different Essentia key, beating the
-   runner-up by a margin), so it doesn't flicker.
-
-Limitations: the tonic comes from Essentia. Modal material with no tonal
-emphasis (a scale run with no vamp or repeated tonic) can be reported as its
-relative major/minor, because the notes alone are identical. Harmonic/melodic
-minor and whole-tone are not detected (the raised 7th in ordinary minor
-progressions would make normal minor music read as "exotic").
-
 Requirements:
     pip install essentia numpy mido python-rtmidi
 
@@ -71,9 +26,7 @@ except ImportError:
 PITCH_CLASS_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 _FLAT_TO_SHARP = {"Db": "C#", "Eb": "D#", "Gb": "F#", "Ab": "G#", "Bb": "A#"}
 
-# ---------------------------------------------------------------------------
 # Scale definitions
-# ---------------------------------------------------------------------------
 # name -> (semitones above tonic, offset from tonic up to the parent major key)
 DIATONIC: Dict[str, Tuple[Tuple[int, ...], int]] = {
     "major":      ((0, 2, 4, 5, 7, 9, 11), 0),
@@ -115,9 +68,7 @@ class KeyState(NamedTuple):
     base: Optional[Tuple[int, str]]   # Essentia's (tonic, major/minor); None for symmetric scales
 
 
-# ---------------------------------------------------------------------------
 # Circle of fifths
-# ---------------------------------------------------------------------------
 def signature_position(state: KeyState) -> Optional[int]:
     """Slot 0-11 on the circle of fifths of the key signature this state
     uses (modes use their parent major scale). None for symmetric scales."""
@@ -137,9 +88,7 @@ def circle_steps(old: KeyState, new: KeyState) -> Optional[int]:
     return min(d, 12 - d)
 
 
-# ---------------------------------------------------------------------------
 # Tracker
-# ---------------------------------------------------------------------------
 class KeyChangeTracker:
     def __init__(
         self,
@@ -166,7 +115,7 @@ class KeyChangeTracker:
         self._cand: Optional[KeyState] = None
         self._cand_hits = 0
 
-    # -- input ---------------------------------------------------------------
+    # input
     def note_on(self, pitch: int, t: float) -> None:
         self._held[pitch] = t
 
@@ -175,7 +124,7 @@ class KeyChangeTracker:
         if onset is not None:
             self._done.append((pitch, onset, max(t - onset, 0.05)))
 
-    # -- analysis ------------------------------------------------------------
+    # analysis
     def _histogram(self, now: float) -> Tuple[np.ndarray, int]:
         cutoff = now - self.window_seconds
         self._done = [n for n in self._done if n[1] + n[2] >= cutoff]
@@ -237,7 +186,7 @@ class KeyChangeTracker:
             interestingnessLevel = "Interesting"
         return interestingnessLevel
 
-    # -- output --------------------------------------------------------------
+    # output
     def estimate(self, now: float):
         """None until enough notes, else (state, changed, steps, is_start)."""
         hist, n = self._histogram(now)
@@ -272,9 +221,7 @@ class KeyChangeTracker:
         return self.current, changed, steps, start
 
 
-# ---------------------------------------------------------------------------
 # MIDI + terminal
-# ---------------------------------------------------------------------------
 def select_port(mido) -> str:
     try:
         names = mido.get_input_names()
