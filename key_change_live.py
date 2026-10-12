@@ -48,15 +48,15 @@ SYMMETRIC: Dict[str, Tuple[Tuple[int, ...], int]] = {
     "augmented":  ((0, 3, 4, 7, 8, 11), 4),
 }
 MOOD = {
-    "major": "major (bright)",
-    "lydian": "lydian (dreamy)",
-    "mixolydian": "mixolydian (bluesy)",
-    "dorian": "dorian (soulful)",
-    "minor": "minor (dark)",
-    "phrygian": "phrygian (brooding)",
-    "locrian": "locrian (unstable)",
-    "diminished": "diminished (tense)",
-    "augmented": "augmented (unsettled)",
+    "major": "major",
+    "lydian": "lydian",
+    "mixolydian": "mixolydian",
+    "dorian": "dorian",
+    "minor": "minor",
+    "phrygian": "phrygian",
+    "locrian": "locrian",
+    "diminished": "diminished",
+    "augmented": "augmented",
 }
 _MAJOR_SET = DIATONIC["major"][0]
 
@@ -176,7 +176,7 @@ class KeyChangeTracker:
         mode = challenger if cov[challenger] - cov[scale] >= self.mode_margin else scale
         return KeyState(tonic, mode, ("dia", tonic, mode), (tonic, scale)), float(gap)
 
-    # -- interestingness -----------------------------------------------------
+    # interestingness
     def interestingness(self, steps: Optional[int]) -> str:
         if steps < 3:
             interestingnessLevel = "Standard"
